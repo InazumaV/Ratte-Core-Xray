@@ -1,16 +1,16 @@
-module Ratte-Core-Xray
+module github.com/InazumaV/Ratte-Core-Xray
 
 go 1.23.3
 
 require (
 	github.com/InazumaV/Ratte-Interface v0.0.0-20241209172154-eb1d9356093c
-	github.com/Yuzuki616/Ratte-Interface v0.0.0-20241122173234-c06942e7f698
 	github.com/goccy/go-json v0.10.3
 	github.com/sirupsen/logrus v1.9.3
 	github.com/xtls/xray-core v1.8.24
 )
 
 require (
+	github.com/Yuzuki616/Ratte-Interface v0.0.0-20241122173234-c06942e7f698 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/cloudflare/circl v1.4.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
