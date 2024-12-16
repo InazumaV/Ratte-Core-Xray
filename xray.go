@@ -171,13 +171,6 @@ func (c *Xray) Start(dataPath string, config []byte) error {
 	return nil
 }
 
-func (c *Xray) AddNode(params *core.AddNodeParams) error {
-	return errors.New("not implemented")
-}
-func (c *Xray) DelNode(name string) error {
-
-	return errors.New("not implemented")
-}
 func (c *Xray) AddUsers(p *core.AddUsersParams) error {
 
 	return errors.New("not implemented")

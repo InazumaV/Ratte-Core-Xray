@@ -3,7 +3,7 @@ module github.com/InazumaV/Ratte-Core-Xray
 go 1.23.3
 
 require (
-	github.com/InazumaV/Ratte-Interface v0.0.0-20241209172154-eb1d9356093c
+	github.com/InazumaV/Ratte-Interface v0.0.0-20241216224413-60dc3e1e5607
 	github.com/goccy/go-json v0.10.3
 	github.com/sirupsen/logrus v1.9.3
 	github.com/xtls/xray-core v1.8.24
