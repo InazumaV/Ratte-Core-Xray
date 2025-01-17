@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"github.com/InazumaV/Ratte-Interface/core"
 	"github.com/goccy/go-json"
+	"github.com/orcaman/concurrent-map/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/xtls/xray-core/app/dispatcher"
 	"github.com/xtls/xray-core/app/proxyman"
 	"github.com/xtls/xray-core/app/stats"
-	"github.com/xtls/xray-core/common/errors"
 	"github.com/xtls/xray-core/common/serial"
 	xc "github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/inbound"
@@ -30,6 +30,7 @@ type Xray struct {
 	ihm        inbound.Manager
 	ohm        outbound.Manager
 	shm        statsFeature.Manager
+	nodes      cmap.ConcurrentMap[string, *core.NodeInfo]
 	dispatcher *dispatcher.DefaultDispatcher
 }
 
@@ -171,22 +172,6 @@ func (c *Xray) Start(dataPath string, config []byte) error {
 	return nil
 }
 
-func (c *Xray) AddUsers(p *core.AddUsersParams) error {
-
-	return errors.New("not implemented")
-}
-func (c *Xray) GetUserTraffic(p *core.GetUserTrafficParams) *core.GetUserTrafficResponse {
-	panic("not implemented")
-}
-func (c *Xray) ResetUserTraffic(p *core.ResetUserTrafficParams) error {
-
-	return errors.New("not implemented")
-}
-func (c *Xray) DelUsers(params *core.DelUsersParams) error {
-
-	return errors.New("not implemented")
-}
-
 // Close  the core
 func (c *Xray) Close() error {
 	c.access.Lock()
@@ -212,5 +197,5 @@ func (c *Xray) Protocols() []string {
 }
 
 func (c *Xray) Type() string {
-	return "xray"
+	return "RatteCoreXray"
 }

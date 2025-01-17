@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/InazumaV/Ratte-Interface/core"
@@ -8,7 +11,7 @@ import (
 	coreConf "github.com/xtls/xray-core/infra/conf"
 )
 
-func getV2rayInboundConfig(p *core.NodeInfo, inbound *coreConf.InboundDetourConfig) error {
+func parseV2rayInboundConfig(p *core.NodeInfo, inbound *coreConf.InboundDetourConfig) error {
 	setsNUll := false
 	if inbound.Settings == nil {
 		setsNUll = true
@@ -71,12 +74,79 @@ func getV2rayInboundConfig(p *core.NodeInfo, inbound *coreConf.InboundDetourConf
 			return fmt.Errorf("unmarshal ws settings error: %s", err)
 		}
 	case "grpc":
-		err := json.Unmarshal(netSets, &inbound.StreamSetting.GRPCConfig)
+		err := json.Unmarshal(netSets, &inbound.StreamSetting.GRPCSettings)
 		if err != nil {
 			return fmt.Errorf("unmarshal grpc settings error: %s", err)
 		}
 	default:
 		return errors.New("the network type is not vail")
 	}
+	return nil
+}
+
+func parseShadowsocksInboundConfig(n *core.NodeInfo, inbound *coreConf.InboundDetourConfig) error {
+	setsNUll := false
+	if inbound.Settings == nil {
+		setsNUll = true
+	} else {
+		if len(*inbound.Settings) == 0 {
+			setsNUll = true
+		}
+	}
+	inbound.Protocol = "shadowsocks"
+	s := n.Shadowsocks
+	settings := &coreConf.ShadowsocksServerConfig{
+		Cipher: s.Cipher,
+	}
+	if !setsNUll {
+		err := json.Unmarshal(*inbound.Settings, &settings)
+		if err != nil {
+			return fmt.Errorf("unmarshal shadowsocks settings error: %s", err)
+		}
+	}
+	p := make([]byte, 32)
+	_, err := rand.Read(p)
+	if err != nil {
+		return fmt.Errorf("generate random password error: %s", err)
+	}
+	randomPasswd := hex.EncodeToString(p)
+	cipher := s.Cipher
+	if s.ServerKey != "" {
+		settings.Password = s.ServerKey
+		randomPasswd = base64.StdEncoding.EncodeToString([]byte(randomPasswd))
+		cipher = ""
+	}
+	defaultSSuser := &coreConf.ShadowsocksUserConfig{
+		Cipher:   cipher,
+		Password: randomPasswd,
+	}
+	settings.Users = append(settings.Users, defaultSSuser)
+	settings.NetworkList = &coreConf.NetworkList{"tcp", "udp"}
+	t := coreConf.TransportProtocol("tcp")
+	inbound.StreamSetting = &coreConf.StreamConfig{Network: &t}
+	sets, err := json.Marshal(settings)
+	inbound.Settings = (*json.RawMessage)(&sets)
+	if err != nil {
+		return fmt.Errorf("marshal shadowsocks settings error: %s", err)
+	}
+	return nil
+}
+
+func parseTrojanInboundConfig(inbound *coreConf.InboundDetourConfig) error {
+	setsNUll := false
+	if inbound.Settings == nil {
+		setsNUll = true
+	} else {
+		if len(*inbound.Settings) == 0 {
+			setsNUll = true
+		}
+	}
+	inbound.Protocol = "trojan"
+	if setsNUll {
+		s := []byte("{}")
+		inbound.Settings = (*json.RawMessage)(&s)
+	}
+	t := coreConf.TransportProtocol("tcp")
+	inbound.StreamSetting = &coreConf.StreamConfig{Network: &t}
 	return nil
 }

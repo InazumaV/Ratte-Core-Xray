@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/InazumaV/Ratte-Core-Xray/common"
 	"github.com/InazumaV/Ratte-Interface/core"
 	"github.com/InazumaV/Ratte-Interface/params"
 	"github.com/goccy/go-json"
+	mapS "github.com/mitchellh/mapstructure"
 	"github.com/xtls/xray-core/common/net"
 	xc "github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/inbound"
@@ -15,16 +17,15 @@ import (
 	"strconv"
 )
 
-func (c *Xray) getInboundConfig(name string, n *core.NodeInfo, tls *core.TlsOptions) (ind *xc.InboundHandlerConfig, err error) {
-	var rawC json.RawMessage
-	if v, ok := n.ExpandParams.OtherOptions["RawInbound"]; ok {
-		if rawC, ok = v.(json.RawMessage); !ok {
-			return nil, errors.New("rawInbound is not vail")
-		}
-	}
+func (c *Xray) getInboundConfig(
+	name string,
+	n *core.NodeInfo,
+	exp *ExpendNodeOptions,
+	tls *core.TlsOptions,
+) (ind *xc.InboundHandlerConfig, err error) {
 	in := &coreConf.InboundDetourConfig{}
-	if len(rawC) > 0 {
-		err = json.Unmarshal(rawC, in)
+	if len(exp.RawInbound) > 0 {
+		err = json.Unmarshal(exp.RawInbound, in)
 		if err != nil {
 			return nil, err
 		}
@@ -40,21 +41,23 @@ func (c *Xray) getInboundConfig(name string, n *core.NodeInfo, tls *core.TlsOpti
 		if n.VMess.TlsType == 1 {
 			enableTls = true
 		}
-		err = getV2rayInboundConfig(n, in)
+		err = parseV2rayInboundConfig(n, in)
 	case "vless":
 		netProtocol = n.VLess.Network
 		common = &n.VLess.CommonNodeParams
 		if n.VLess.TlsType == 1 {
 			enableTls = true
 		}
-		err = getV2rayInboundConfig(n, in)
+		err = parseV2rayInboundConfig(n, in)
 	case "trojan":
 		netProtocol = "tcp"
+		common = (*params.CommonNodeParams)(n.Trojan)
 		enableTls = true
-		err = errors.New("not impl")
+		err = parseTrojanInboundConfig(in)
 	case "shadowsocks":
 		netProtocol = "tcp"
-		err = errors.New("not impl")
+		common = &n.Shadowsocks.CommonNodeParams
+		err = parseShadowsocksInboundConfig(n, in)
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", n.Type)
 	}
@@ -63,6 +66,9 @@ func (c *Xray) getInboundConfig(name string, n *core.NodeInfo, tls *core.TlsOpti
 	}
 	p, _ := strconv.Atoi(common.Port)
 	port = uint32(p)
+	if port == 0 {
+		return nil, fmt.Errorf("invalid port: %d", port)
+	}
 	// Set network protocol
 	// Set server port
 	in.PortList = &coreConf.PortList{
@@ -97,7 +103,8 @@ func (c *Xray) getInboundConfig(name string, n *core.NodeInfo, tls *core.TlsOpti
 	case "ws":
 		if in.StreamSetting.WSSettings == nil {
 			in.StreamSetting.WSSettings = &coreConf.WebSocketConfig{
-				AcceptProxyProtocol: common.ProxyProtocol} //Enable proxy protocol
+				AcceptProxyProtocol: common.ProxyProtocol,
+			} //Enable proxy protocol
 		} else {
 			in.StreamSetting.WSSettings.AcceptProxyProtocol = common.ProxyProtocol
 		}
@@ -136,29 +143,35 @@ func (c *Xray) getInboundConfig(name string, n *core.NodeInfo, tls *core.TlsOpti
 	return in.Build()
 }
 
-func (c *Xray) getOutboundConfig(name string, n *core.NodeInfo) (outH *xc.OutboundHandlerConfig, err error) {
+func (c *Xray) getOutboundConfig(name string, exp *ExpendNodeOptions) (outH *xc.OutboundHandlerConfig, err error) {
 	var rawC json.RawMessage
-	if v, ok := n.ExpandParams.OtherOptions["RawOutbound"]; ok {
-		if rawC, ok = v.(json.RawMessage); !ok {
-			return nil, errors.New("rawInbound is not vail")
-		}
-	}
 	oc := &coreConf.OutboundDetourConfig{
 		Protocol: "freedom",
 	}
-	if len(rawC) > 0 {
+	if len(exp.RawOutbound) > 0 {
 		err = json.Unmarshal(rawC, &oc)
 	}
 	oc.Tag = name
 	return oc.Build()
 }
 
+type ExpendNodeOptions struct {
+	SendIp      string          `mapstructure:"SendIp"`
+	RawOutbound json.RawMessage `mapstructure:"RawOutbound"`
+	RawInbound  json.RawMessage `mapstructure:"RawInbound"`
+}
+
 func (c *Xray) AddNode(params *core.AddNodeParams) error {
-	in, err := c.getInboundConfig(params.Name, params.NodeInfo, &params.TlsOptions)
+	expO := &ExpendNodeOptions{}
+	err := mapS.Decode(params.NodeInfo.ExpandParams.OtherOptions, expO)
+	if err != nil {
+		return fmt.Errorf("unmarshal expend node options failed: %s", err)
+	}
+	in, err := c.getInboundConfig(params.Name, params.NodeInfo, expO, &params.TlsOptions)
 	if err != nil {
 		return fmt.Errorf("get inbound config error: %s", err)
 	}
-	out, err := c.getOutboundConfig(params.Name, params.NodeInfo)
+	out, err := c.getOutboundConfig(common.FormatDefaultOutboundName(params.Name), expO)
 	if err != nil {
 		return fmt.Errorf("get outbound config error: %s", err)
 	}
@@ -185,7 +198,8 @@ func (c *Xray) AddNode(params *core.AddNodeParams) error {
 	if err = c.ohm.AddHandler(context.Background(), handler); err != nil {
 		return fmt.Errorf("add outbound handler error: %s", err)
 	}
-	return errors.New("not implemented")
+	c.nodes.Remove(params.Name)
+	return nil
 }
 
 func (c *Xray) DelNode(name string) error {
@@ -193,9 +207,10 @@ func (c *Xray) DelNode(name string) error {
 	if err != nil {
 		return fmt.Errorf("remove inbound %s error: %v", name, err)
 	}
-	err = c.ohm.RemoveHandler(context.Background(), name)
+	err = c.ohm.RemoveHandler(context.Background(), common.FormatDefaultOutboundName(name))
 	if err != nil {
 		return fmt.Errorf("remove outbound %s error: %v", name, err)
 	}
-	return errors.New("not implemented")
+	c.nodes.Remove(name)
+	return nil
 }
