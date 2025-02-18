@@ -177,7 +177,7 @@ func (c *Xray) AddNode(p *core.AddNodeParams) error {
 		return fmt.Errorf("get outbound config error: %s", err)
 	}
 	limit := p.NodeInfo.Limit
-	_ = c.dispatcher.AddLimiter(p.Name, limiter.NewLimiter(limit.IPLimit, uint64(limit.SpeedLimit)))
+	_ = c.dispatcher.AddLimiter(p.Name, limiter.NewLimiter(limit.IPLimit, limit.SpeedLimit))
 	rawInH, err := xc.CreateObject(c.Server, in)
 	if err != nil {
 		return err
