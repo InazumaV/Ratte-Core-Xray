@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/InazumaV/Ratte-Core-Xray/common"
+	"github.com/InazumaV/Ratte-Core-Xray/limiter"
 	"github.com/InazumaV/Ratte-Interface/core"
 	"github.com/InazumaV/Ratte-Interface/params"
 	"github.com/goccy/go-json"
@@ -161,20 +162,33 @@ type ExpendNodeOptions struct {
 	RawInbound  json.RawMessage `mapstructure:"RawInbound"`
 }
 
-func (c *Xray) AddNode(params *core.AddNodeParams) error {
+func (c *Xray) AddNode(p *core.AddNodeParams) error {
 	expO := &ExpendNodeOptions{}
-	err := mapS.Decode(params.NodeInfo.ExpandParams.OtherOptions, expO)
+	err := mapS.Decode(p.NodeInfo.ExpandParams.OtherOptions, expO)
 	if err != nil {
 		return fmt.Errorf("unmarshal expend node options failed: %s", err)
 	}
-	in, err := c.getInboundConfig(params.Name, params.NodeInfo, expO, &params.TlsOptions)
+	in, err := c.getInboundConfig(p.Name, p.NodeInfo, expO, &p.TlsOptions)
 	if err != nil {
 		return fmt.Errorf("get inbound config error: %s", err)
 	}
-	out, err := c.getOutboundConfig(common.FormatDefaultOutboundName(params.Name), expO)
+	out, err := c.getOutboundConfig(common.FormatDefaultOutboundName(p.Name), expO)
 	if err != nil {
 		return fmt.Errorf("get outbound config error: %s", err)
 	}
+	var limit params.LimitOptions
+	n := p.NodeInfo
+	switch n.Type {
+	case "vmess":
+		limit = n.VMess.Limit
+	case "vless":
+		limit = n.VLess.Limit
+	case "trojan":
+		limit = n.Trojan.Limit
+	case "shadowsocks":
+		limit = n.Shadowsocks.Limit
+	}
+	_ = c.dispatcher.AddLimiter(p.Name, limiter.NewLimiter(limit.IPLimit, uint64(limit.SpeedLimit)))
 	rawInH, err := xc.CreateObject(c.Server, in)
 	if err != nil {
 		return err
@@ -198,7 +212,7 @@ func (c *Xray) AddNode(params *core.AddNodeParams) error {
 	if err = c.ohm.AddHandler(context.Background(), handler); err != nil {
 		return fmt.Errorf("add outbound handler error: %s", err)
 	}
-	c.nodes.Remove(params.Name)
+	c.nodes.Set(p.Name, p.NodeInfo)
 	return nil
 }
 
@@ -212,5 +226,6 @@ func (c *Xray) DelNode(name string) error {
 		return fmt.Errorf("remove outbound %s error: %v", name, err)
 	}
 	c.nodes.Remove(name)
+	_ = c.dispatcher.RemoveLimiter(name)
 	return nil
 }

@@ -3,6 +3,8 @@ package dispatcher
 import (
 	"context"
 	ic "github.com/InazumaV/Ratte-Core-Xray/common"
+	"github.com/InazumaV/Ratte-Core-Xray/limiter"
+	cmap "github.com/orcaman/concurrent-map/v2"
 	"regexp"
 	"strings"
 	"sync"
@@ -101,6 +103,10 @@ type DefaultDispatcher struct {
 	stats  stats.Manager
 	dns    dns.Client
 	fdns   dns.FakeDNSEngine
+
+	// Modify -------------------------------------
+	ls cmap.ConcurrentMap[string, *limiter.Limiter]
+	// --------------------------------------------
 }
 
 func init() {
@@ -162,7 +168,34 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 		user = sessionInbound.User
 	}
 
+	// Modify -------------------------------------
 	if user != nil && len(user.Email) > 0 {
+		l, ok := d.ls.Get(sessionInbound.Tag)
+		if ok {
+			// Ip limit check
+			r, err := l.CheckIpLimitThenRecord(user.Email, sessionInbound.Source.String())
+			if err != nil {
+				errors.LogWarning(ctx, "Check ip limit error: ", err)
+			}
+			if r {
+				common.Close(outboundLink.Writer)
+				common.Close(inboundLink.Writer)
+				common.Interrupt(outboundLink.Reader)
+				common.Interrupt(inboundLink.Reader)
+				errors.LogWarning(ctx, "Reject user[", user.Email, "] connect by IP limit.", err)
+				return nil, nil
+			}
+
+			// speed limit check
+			b, err := l.CheckSpeedLimitTheGetRateLimiter(user.Email)
+			if err != nil {
+				errors.LogWarning(ctx, "Check speed limit error: ", err)
+			}
+			inboundLink.Writer = limiter.NewRateLimitWriter(inboundLink.Writer, b)
+			outboundLink.Writer = limiter.NewRateLimitWriter(outboundLink.Writer, b)
+		}
+		// -------------------------------------
+
 		p := d.policy.ForLevel(user.Level)
 		if p.Stats.UserUplink {
 			name := "user>>>" + user.Email + ">>>traffic>>>uplink"
@@ -265,6 +298,12 @@ func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destin
 
 	sniffingRequest := content.SniffingRequest
 	inbound, outbound := d.getLink(ctx)
+
+	// Modify -------------------------------------
+	if inbound == nil || outbound == nil {
+		return nil, errors.New("rejected get link")
+	}
+	// -------------------------------------------
 	if !sniffingRequest.Enabled {
 		go d.routedDispatch(ctx, outbound, destination)
 	} else {

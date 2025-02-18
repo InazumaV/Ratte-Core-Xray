@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/InazumaV/Ratte-Core-Xray/dispatcher"
 	"github.com/InazumaV/Ratte-Interface/core"
 	"github.com/goccy/go-json"
 	"github.com/orcaman/concurrent-map/v2"
 	log "github.com/sirupsen/logrus"
-	"github.com/xtls/xray-core/app/dispatcher"
 	"github.com/xtls/xray-core/app/proxyman"
 	"github.com/xtls/xray-core/app/stats"
 	"github.com/xtls/xray-core/common/serial"

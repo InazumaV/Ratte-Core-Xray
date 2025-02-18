@@ -11,15 +11,14 @@ func (j *AutoLoadRawMessage) UnmarshalJSON(data []byte) error {
 	var path string
 	err := json.Unmarshal(data, &path)
 	if err == nil {
-		f, err := os.Open(path)
+		f, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		defer f.Close()
-		return json.NewDecoder(f).Decode(j)
-	} else {
-		return json.Unmarshal(data, &j)
+		data = f
 	}
+	*j = data
+	return nil
 }
 
 type XrayConfig struct {
