@@ -3,7 +3,8 @@ A Xray-Core plugin for Ratte.
 The project stay under development, so can not use for now.
 
 ## Todo
-- [ ] Impl limiter
+- [x] Impl limiter
+- [ ] Impl rule checker
 - [ ] unit testing 
 
 ## Thanks
