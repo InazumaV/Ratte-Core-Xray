@@ -459,6 +459,28 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 
 	routingLink := routing_session.AsRoutingContext(ctx)
 	inTag := routingLink.GetInboundTag()
+
+	// Modify -------------------------------------
+	l, ok := d.ls.Get(inTag)
+	if ok {
+		var protocol string
+		content := session.ContentFromContext(ctx)
+		if content != nil {
+			protocol = content.Protocol
+		}
+		if l.CheckRule(
+			destination.Address.String(),
+			destination.Port.String(),
+			protocol,
+		) {
+			errors.LogError(ctx, "Reject by ruler.")
+			common.Close(link.Writer)
+			common.Interrupt(link.Reader)
+			return
+		}
+	}
+	// -------------------------------------
+
 	isPickRoute := 0
 	if forcedOutboundTag := session.GetForcedOutboundTagFromContext(ctx); forcedOutboundTag != "" {
 		ctx = session.SetForcedOutboundTagToContext(ctx, "")
@@ -494,6 +516,12 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 	if handler == nil {
 		handler = d.ohm.GetHandler(ic.FormatDefaultOutboundName(inTag))
 	}
+
+	// Modify ------------------------------------------
+	if handler == nil {
+		handler = d.ohm.GetHandler(inTag)
+	}
+	// -------------------------------------------
 
 	if handler == nil {
 		handler = d.ohm.GetDefaultHandler()

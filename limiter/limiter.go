@@ -5,6 +5,8 @@ import (
 	"github.com/InazumaV/Ratte-Interface/params"
 	cmap "github.com/orcaman/concurrent-map/v2"
 	"golang.org/x/time/rate"
+	"regexp"
+	"sync"
 )
 
 type Limiter struct {
@@ -12,6 +14,8 @@ type Limiter struct {
 	SpeedLimit uint64
 	userLimit  cmap.ConcurrentMap[string, *UserLimit]
 	userIpList cmap.ConcurrentMap[string, cmap.ConcurrentMap[string, struct{}]]
+	ruleLock   sync.RWMutex
+	RegexpRule []*regexp.Regexp
 }
 
 type UserLimit struct {
@@ -20,13 +24,15 @@ type UserLimit struct {
 	SpeedLimit uint64
 }
 
-func NewLimiter(ipLimit int, speedLimit uint64) *Limiter {
-	return &Limiter{
+func NewLimiter(ipLimit int, speedLimit uint64, rules []string) *Limiter {
+	l := &Limiter{
 		IpLimit:    ipLimit,
 		SpeedLimit: speedLimit,
 		userLimit:  cmap.ConcurrentMap[string, *UserLimit]{},
 		userIpList: cmap.ConcurrentMap[string, cmap.ConcurrentMap[string, struct{}]]{},
 	}
+	l.UpdateRule(rules)
+	return l
 }
 
 func (l *Limiter) AddUserInfos(us []params.UserInfo) {
@@ -79,4 +85,31 @@ func (l *Limiter) CheckSpeedLimitTheGetRateLimiter(email string) (limiter *rate.
 	}
 	li := rate.NewLimiter(rate.Limit(sl), sl)
 	return li, nil
+}
+
+func (l *Limiter) CheckRule(contents ...string) (reject bool) {
+	l.ruleLock.RLock()
+	defer l.ruleLock.RUnlock()
+	if len(contents) == 0 {
+		return false
+	}
+	for _, rule := range l.RegexpRule {
+		for _, content := range contents {
+			if rule.MatchString(content) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (l *Limiter) UpdateRule(rules []string) (reject bool) {
+	ruleN := make([]*regexp.Regexp, 0, len(rules))
+	for _, rule := range rules {
+		ruleN = append(ruleN, regexp.MustCompile(rule))
+	}
+	l.ruleLock.Lock()
+	defer l.ruleLock.Unlock()
+	l.RegexpRule = ruleN
+	return false
 }
