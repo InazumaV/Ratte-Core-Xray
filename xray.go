@@ -30,6 +30,7 @@ type Xray struct {
 	ihm        inbound.Manager
 	ohm        outbound.Manager
 	shm        statsFeature.Manager
+	ru         routing.Router
 	nodes      cmap.ConcurrentMap[string, *core.NodeInfo]
 	dispatcher *dispatcher.DefaultDispatcher
 }
@@ -91,15 +92,32 @@ func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {
 
 	// Load outbound config
 	var coreCustomOutboundConfig []coreConf.OutboundDetourConfig
-	err = json.Unmarshal(c.Outbound, coreCustomOutboundConfig)
-	if err != nil {
-		return nil, fmt.Errorf("decode outbound config error: %w", err)
+	if len(c.Outbound) > 0 {
+		err = json.Unmarshal(c.Outbound, coreCustomOutboundConfig)
+		if err != nil {
+			return nil, fmt.Errorf("decode outbound config error: %w", err)
+		}
 	}
+	var foundBlock bool
 	var outBoundConfig []*xc.OutboundHandlerConfig
 	for _, config := range coreCustomOutboundConfig {
 		oc, err := config.Build()
 		if err != nil {
 			return nil, fmt.Errorf("build outbound config error: %w", err)
+		}
+		if config.Tag == "block" {
+			foundBlock = true
+		}
+		outBoundConfig = append(outBoundConfig, oc)
+	}
+
+	if !foundBlock {
+		oc, err := (&coreConf.OutboundDetourConfig{
+			Protocol: "blackhole",
+			Tag:      "block",
+		}).Build()
+		if err != nil {
+			return nil, fmt.Errorf("build block outbound config error: %w", err)
 		}
 		outBoundConfig = append(outBoundConfig, oc)
 	}
@@ -168,6 +186,7 @@ func (c *Xray) Start(dataPath string, config []byte) error {
 	c.shm = c.Server.GetFeature(statsFeature.ManagerType()).(statsFeature.Manager)
 	c.ihm = c.Server.GetFeature(inbound.ManagerType()).(inbound.Manager)
 	c.ohm = c.Server.GetFeature(outbound.ManagerType()).(outbound.Manager)
+	c.ru = c.Server.GetFeature(routing.RouterType()).(routing.Router)
 	c.dispatcher = c.Server.GetFeature(routing.DispatcherType()).(*dispatcher.DefaultDispatcher)
 	return nil
 }

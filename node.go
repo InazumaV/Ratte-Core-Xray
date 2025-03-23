@@ -11,11 +11,13 @@ import (
 	"github.com/goccy/go-json"
 	mapS "github.com/mitchellh/mapstructure"
 	"github.com/xtls/xray-core/common/net"
+	"github.com/xtls/xray-core/common/serial"
 	xc "github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/inbound"
 	"github.com/xtls/xray-core/features/outbound"
 	coreConf "github.com/xtls/xray-core/infra/conf"
 	"strconv"
+	"strings"
 )
 
 func (c *Xray) getInboundConfig(
@@ -154,6 +156,72 @@ func (c *Xray) getOutboundConfig(name string, exp *ExpendNodeOptions) (outH *xc.
 	}
 	oc.Tag = name
 	return oc.Build()
+}
+
+type ruleObj struct {
+	DomainMatcher string   `json:"domainMatcher"`
+	Type          string   `json:"type"`
+	Domain        []string `json:"domain"`
+	Ip            []string `json:"ip"`
+	Port          any      `json:"port"`
+	SourcePort    string   `json:"sourcePort"`
+	Network       string   `json:"network"`
+	Source        []string `json:"source"`
+	User          []string `json:"user"`
+	InboundTag    []string `json:"inboundTag"`
+	Protocol      []string `json:"protocol"`
+	Attrs         struct {
+		Method string `json:":method"`
+	} `json:"attrs"`
+	OutboundTag string `json:"outboundTag"`
+	BalancerTag string `json:"balancerTag"`
+	RuleTag     string `json:"ruleTag"`
+}
+
+func (c *Xray) addRulesRouting(rs []string) error {
+	rules := make([]json.RawMessage, len(rs))
+	for _, r := range rs {
+		var temp ruleObj
+		rO := strings.Split(r, "!")
+		if len(rO) == 1 {
+			temp = ruleObj{
+				DomainMatcher: "hybrid",
+				Domain:        []string{rO[0]},
+				OutboundTag:   "block",
+			}
+		} else {
+			switch rO[0] {
+			case "domain":
+				temp = ruleObj{
+					DomainMatcher: "hybrid",
+					Domain:        []string{rO[1]},
+					OutboundTag:   "block",
+				}
+			case "port":
+				temp = ruleObj{
+					DomainMatcher: "hybrid",
+					Port:          rO[1],
+					OutboundTag:   "block",
+				}
+			}
+		}
+		b, err := json.Marshal(temp)
+		if err != nil {
+			return err
+		}
+		rules = append(rules, b)
+	}
+	rc := &coreConf.RouterConfig{
+		DomainMatcher:  "hybrid",
+		DomainStrategy: common.NewValue("AsIs"),
+		RuleList:       rules,
+	}
+
+	tc, err := rc.Build()
+	if err != nil {
+		return err
+	}
+	return c.ru.AddRule(serial.ToTypedMessage(tc), true)
 }
 
 type ExpendNodeOptions struct {

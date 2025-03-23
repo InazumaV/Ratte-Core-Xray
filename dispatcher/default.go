@@ -461,7 +461,8 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 	inTag := routingLink.GetInboundTag()
 
 	// Modify -------------------------------------
-	l, ok := d.ls.Get(inTag)
+	// Deprecated: use router api to refactor
+	/*l, ok := d.ls.Get(inTag)
 	if ok {
 		var protocol string
 		content := session.ContentFromContext(ctx)
@@ -478,7 +479,7 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 			common.Interrupt(link.Reader)
 			return
 		}
-	}
+	}*/
 	// -------------------------------------
 
 	isPickRoute := 0
@@ -513,11 +514,11 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 		}
 	}
 
+	// Modify ------------------------------------------
 	if handler == nil {
 		handler = d.ohm.GetHandler(ic.FormatDefaultOutboundName(inTag))
 	}
 
-	// Modify ------------------------------------------
 	if handler == nil {
 		handler = d.ohm.GetHandler(inTag)
 	}
