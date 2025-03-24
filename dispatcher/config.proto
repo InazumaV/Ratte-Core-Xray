@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package xray.app.dispatcher;
-option csharp_namespace = "Xray.App.Dispatcher";
+package github.com.InazumaV.RatteCoreXray.dispatcher;
+option csharp_namespace = "github.com/InazumaV/Ratte-Core-Xray/dispatcher";
 option go_package = "./dispatcher";
-option java_package = "com.xray.app.dispatcher";
+option java_package = "github.com/InazumaV/Ratte-Core-Xray/dispatcher";
 option java_multiple_files = true;
 
 message SessionConfig {

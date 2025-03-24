@@ -30,3 +30,48 @@ type XrayConfig struct {
 	Route     AutoLoadRawMessage `json:"Route"`
 	Policy    AutoLoadRawMessage `json:"Policy"`
 }
+
+const (
+	defLog = `{
+	"Level": "error"
+}
+`
+	defDns      = ``
+	defInbound  = ``
+	defOutbound = `
+[
+	{
+		"protocol": "freedom",
+		"tag": "default_direct"
+	},
+	{
+		"protocol": "blackhole",
+		"tag": "block"
+	}
+]
+`
+	defRoute  = ``
+	defPolicy = `
+{
+	"handshake": 4,
+	"connIdle": 300,
+	"uplinkOnly": 2,
+	"downlinkOnly": 5,
+	"statsUserUplink": false,
+	"statsUserDownlink": false,
+	"bufferSize": 4
+}
+`
+)
+
+func NewXrayConfig() *XrayConfig {
+	return &XrayConfig{
+		AssetPath: "",
+		Log:       AutoLoadRawMessage(defLog),
+		Dns:       AutoLoadRawMessage(defDns),
+		Inbound:   AutoLoadRawMessage(defInbound),
+		Outbound:  AutoLoadRawMessage(defOutbound),
+		Route:     AutoLoadRawMessage(defRoute),
+		Policy:    AutoLoadRawMessage(defPolicy),
+	}
+}

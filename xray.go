@@ -46,17 +46,21 @@ func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {
 	}
 	// Load log config
 	coreLogConfig := &coreConf.LogConfig{}
-	err = json.Unmarshal(c.Log, coreLogConfig)
-	if err != nil {
-		return nil, fmt.Errorf("decode log config error: %w", err)
+	if len(c.Log) > 0 {
+		err = json.Unmarshal(c.Log, coreLogConfig)
+		if err != nil {
+			return nil, fmt.Errorf("decode log config error: %w", err)
+		}
 	}
 
 	// Load dns config
 	coreDnsConfig := &coreConf.DNSConfig{}
 	os.Setenv("XRAY_DNS_PATH", "")
-	err = json.Unmarshal(c.Dns, coreDnsConfig)
-	if err != nil {
-		return nil, fmt.Errorf("decode dns config error: %w", err)
+	if len(c.Dns) > 0 {
+		err = json.Unmarshal(c.Dns, coreDnsConfig)
+		if err != nil {
+			return nil, fmt.Errorf("decode dns config error: %w", err)
+		}
 	}
 	dnsConfig, err := coreDnsConfig.Build()
 	if err != nil {
@@ -65,9 +69,11 @@ func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {
 
 	// Load route config
 	coreRouterConfig := &coreConf.RouterConfig{}
-	err = json.Unmarshal(c.Route, coreRouterConfig)
-	if err != nil {
-		return nil, fmt.Errorf("decode route config error: %w", err)
+	if len(c.Route) > 0 {
+		err = json.Unmarshal(c.Route, coreRouterConfig)
+		if err != nil {
+			return nil, fmt.Errorf("decode route config error: %w", err)
+		}
 	}
 	routeConfig, err := coreRouterConfig.Build()
 	if err != nil {
@@ -76,9 +82,11 @@ func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {
 
 	// Load inbound config
 	var coreCustomInboundConfig []coreConf.InboundDetourConfig
-	err = json.Unmarshal(c.Inbound, coreCustomInboundConfig)
-	if err != nil {
-		return nil, fmt.Errorf("decode inbound config error: %w", err)
+	if len(coreCustomInboundConfig) > 0 {
+		err = json.Unmarshal(c.Inbound, &coreCustomInboundConfig)
+		if err != nil {
+			return nil, fmt.Errorf("decode inbound config error: %w", err)
+		}
 	}
 	var inBoundConfig []*xc.InboundHandlerConfig
 	for _, config := range coreCustomInboundConfig {
@@ -93,7 +101,7 @@ func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {
 	// Load outbound config
 	var coreCustomOutboundConfig []coreConf.OutboundDetourConfig
 	if len(c.Outbound) > 0 {
-		err = json.Unmarshal(c.Outbound, coreCustomOutboundConfig)
+		err = json.Unmarshal(c.Outbound, &coreCustomOutboundConfig)
 		if err != nil {
 			return nil, fmt.Errorf("decode outbound config error: %w", err)
 		}
@@ -124,9 +132,11 @@ func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {
 
 	// Load policy config
 	var policy = &coreConf.Policy{}
-	err = json.Unmarshal(c.Policy, policy)
-	if err != nil {
-		return nil, fmt.Errorf("decode policy error: %w", err)
+	if len(c.Policy) > 0 {
+		err = json.Unmarshal(c.Policy, policy)
+		if err != nil {
+			return nil, fmt.Errorf("decode policy error: %w", err)
+		}
 	}
 	corePolicyConfig := &coreConf.PolicyConfig{}
 	corePolicyConfig.Levels = map[uint32]*coreConf.Policy{0: policy}
@@ -161,15 +171,13 @@ func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {
 		log.SetLevel(log.ErrorLevel)
 	case "none":
 		log.SetLevel(log.PanicLevel)
-	default:
-		return nil, nil
 	}
 	return server, nil
 }
 
 // Start the Xray
 func (c *Xray) Start(dataPath string, config []byte) error {
-	var cf = &XrayConfig{}
+	var cf = NewXrayConfig()
 	err := json.Unmarshal(config, cf)
 	if err != nil {
 		return err

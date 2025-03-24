@@ -179,7 +179,7 @@ type ruleObj struct {
 }
 
 func (c *Xray) addRulesRouting(rs []string) error {
-	rules := make([]json.RawMessage, len(rs))
+	rules := make([]json.RawMessage, 0, len(rs))
 	for _, r := range rs {
 		var temp ruleObj
 		rO := strings.Split(r, "!")
@@ -219,7 +219,7 @@ func (c *Xray) addRulesRouting(rs []string) error {
 
 	tc, err := rc.Build()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to build router config: %v", err)
 	}
 	return c.ru.AddRule(serial.ToTypedMessage(tc), true)
 }
