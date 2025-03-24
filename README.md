@@ -4,7 +4,7 @@ The project stay under development, so can not use for now.
 
 ## Todo
 - [x] Impl limiter
-- [ ] Impl rule checker
+- [x] Impl rule checker
 - [ ] unit testing 
 
 ## Thanks
