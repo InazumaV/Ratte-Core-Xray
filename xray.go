@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/InazumaV/Ratte-Core-Xray/dispatcher"
+	"github.com/InazumaV/Ratte-Interface/common/errors"
 	"github.com/InazumaV/Ratte-Interface/core"
 	"github.com/goccy/go-json"
 	"github.com/orcaman/concurrent-map/v2"
@@ -176,9 +177,14 @@ func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {
 }
 
 // Start the Xray
-func (c *Xray) Start(dataPath string, config []byte) error {
+func (c *Xray) Start(dataPath string, config []byte) (err error) {
+	defer func() {
+		if err != nil {
+			err = errors.NewStringFromErr(err)
+		}
+	}()
 	var cf = NewXrayConfig()
-	err := json.Unmarshal(config, cf)
+	err = json.Unmarshal(config, cf)
 	if err != nil {
 		return err
 	}
@@ -200,14 +206,19 @@ func (c *Xray) Start(dataPath string, config []byte) error {
 }
 
 // Close  the core
-func (c *Xray) Close() error {
+func (c *Xray) Close() (err error) {
+	defer func() {
+		if err != nil {
+			err = errors.NewStringFromErr(err)
+		}
+	}()
 	c.access.Lock()
 	defer c.access.Unlock()
 	c.ihm = nil
 	c.ohm = nil
 	c.shm = nil
 	c.dispatcher = nil
-	err := c.Server.Close()
+	err = c.Server.Close()
 	if err != nil {
 		return err
 	}

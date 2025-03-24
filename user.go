@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/InazumaV/Ratte-Core-Xray/common"
+	"github.com/InazumaV/Ratte-Interface/common/errors"
 	"github.com/InazumaV/Ratte-Interface/core"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/serial"
@@ -57,7 +58,12 @@ func getCipherFromString(c string) shadowsocks.CipherType {
 	}
 }
 
-func (c *Xray) AddUsers(p *core.AddUsersParams) error {
+func (c *Xray) AddUsers(p *core.AddUsersParams) (err error) {
+	defer func() {
+		if err != nil {
+			err = errors.NewStringFromErr(err)
+		}
+	}()
 	users := make([]*protocol.User, 0)
 	ni, _ := c.nodes.Get(p.NodeName)
 	switch ni.Type {
@@ -143,7 +149,12 @@ func (c *Xray) GetUserTraffic(p *core.GetUserTrafficParams) *core.GetUserTraffic
 	return Rsp
 }
 
-func (c *Xray) ResetUserTraffic(p *core.ResetUserTrafficParams) error {
+func (c *Xray) ResetUserTraffic(p *core.ResetUserTrafficParams) (err error) {
+	defer func() {
+		if err != nil {
+			err = errors.NewStringFromErr(err)
+		}
+	}()
 	upName := "user>>>" + common.FormatUserEmail(p.NodeName, p.Username) + ">>>traffic>>uplink"
 	downName := "user>>>" + common.FormatUserEmail(p.NodeName, p.Username) + ">>>traffic>>>downlink"
 	upCounter := c.shm.GetCounter(upName)
@@ -157,7 +168,12 @@ func (c *Xray) ResetUserTraffic(p *core.ResetUserTrafficParams) error {
 	return nil
 }
 
-func (c *Xray) DelUsers(p *core.DelUsersParams) error {
+func (c *Xray) DelUsers(p *core.DelUsersParams) (err error) {
+	defer func() {
+		if err != nil {
+			err = errors.NewStringFromErr(err)
+		}
+	}()
 	userManager, err := c.getUserManager(p.NodeName)
 	if err != nil {
 		return fmt.Errorf("get user manager error: %s", err)

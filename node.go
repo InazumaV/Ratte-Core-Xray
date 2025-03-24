@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/InazumaV/Ratte-Core-Xray/common"
 	"github.com/InazumaV/Ratte-Core-Xray/limiter"
+	e2 "github.com/InazumaV/Ratte-Interface/common/errors"
 	"github.com/InazumaV/Ratte-Interface/core"
 	"github.com/InazumaV/Ratte-Interface/params"
 	"github.com/goccy/go-json"
@@ -180,14 +181,16 @@ type ruleObj struct {
 
 func (c *Xray) addRulesRouting(rs []string) error {
 	rules := make([]json.RawMessage, 0, len(rs))
-	for _, r := range rs {
+	for i, r := range rs {
 		var temp ruleObj
 		rO := strings.Split(r, "!")
+		tag := fmt.Sprintf("block-%d", i)
 		if len(rO) == 1 {
 			temp = ruleObj{
 				DomainMatcher: "hybrid",
 				Domain:        []string{rO[0]},
 				OutboundTag:   "block",
+				RuleTag:       tag,
 			}
 		} else {
 			switch rO[0] {
@@ -196,12 +199,14 @@ func (c *Xray) addRulesRouting(rs []string) error {
 					DomainMatcher: "hybrid",
 					Domain:        []string{rO[1]},
 					OutboundTag:   "block",
+					RuleTag:       tag,
 				}
 			case "port":
 				temp = ruleObj{
 					DomainMatcher: "hybrid",
 					Port:          rO[1],
 					OutboundTag:   "block",
+					RuleTag:       tag,
 				}
 			}
 		}
@@ -224,15 +229,30 @@ func (c *Xray) addRulesRouting(rs []string) error {
 	return c.ru.AddRule(serial.ToTypedMessage(tc), true)
 }
 
+func (c *Xray) delRulesRouting(r []string) error {
+	for i := range r {
+		tag := fmt.Sprintf("block-%d", i)
+		if err := c.ru.RemoveRule(tag); err != nil {
+			return fmt.Errorf("remove rule %s error: %v", tag, err)
+		}
+	}
+	return nil
+}
+
 type ExpendNodeOptions struct {
 	SendIp      string          `mapstructure:"SendIp"`
 	RawOutbound json.RawMessage `mapstructure:"RawOutbound"`
 	RawInbound  json.RawMessage `mapstructure:"RawInbound"`
 }
 
-func (c *Xray) AddNode(p *core.AddNodeParams) error {
+func (c *Xray) AddNode(p *core.AddNodeParams) (err error) {
+	defer func() {
+		if err != nil {
+			err = e2.NewStringFromErr(err)
+		}
+	}()
 	expO := &ExpendNodeOptions{}
-	err := mapS.Decode(p.NodeInfo.ExpandParams.OtherOptions, expO)
+	err = mapS.Decode(p.NodeInfo.ExpandParams.OtherOptions, expO)
 	if err != nil {
 		return fmt.Errorf("unmarshal expend node options failed: %s", err)
 	}
@@ -279,8 +299,13 @@ func (c *Xray) AddNode(p *core.AddNodeParams) error {
 	return nil
 }
 
-func (c *Xray) DelNode(name string) error {
-	err := c.ihm.RemoveHandler(context.Background(), name)
+func (c *Xray) DelNode(name string) (err error) {
+	defer func() {
+		if err != nil {
+			err = e2.NewStringFromErr(err)
+		}
+	}()
+	err = c.ihm.RemoveHandler(context.Background(), name)
 	if err != nil {
 		return fmt.Errorf("remove inbound %s error: %v", name, err)
 	}
@@ -288,7 +313,13 @@ func (c *Xray) DelNode(name string) error {
 	if err != nil {
 		return fmt.Errorf("remove outbound %s error: %v", name, err)
 	}
+
+	n, _ := c.nodes.Get(name)
 	c.nodes.Remove(name)
 	_ = c.dispatcher.RemoveLimiter(name)
+	err = c.delRulesRouting(n.Rules)
+	if err != nil {
+		return fmt.Errorf("remove rules routing error: %v", err)
+	}
 	return nil
 }
