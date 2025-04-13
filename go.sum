@@ -2,6 +2,8 @@ github.com/InazumaV/Ratte-Interface v0.0.0-20250218011150-2b79ae58515b h1:OKjc2f
 github.com/InazumaV/Ratte-Interface v0.0.0-20250218011150-2b79ae58515b/go.mod h1:UxqxslbpT8Q4qMldSNI6VCX5WFXWDbvE4fXpymp73kA=
 github.com/InazumaV/Ratte-Interface v0.0.0-20250326062317-c1a05d8e7762 h1:2J/0eyXfCJ9I9SR5MZTENI1rOA522xj1PiQWIl3A8XA=
 github.com/InazumaV/Ratte-Interface v0.0.0-20250326062317-c1a05d8e7762/go.mod h1:UxqxslbpT8Q4qMldSNI6VCX5WFXWDbvE4fXpymp73kA=
+github.com/InazumaV/Ratte-Interface v0.0.0-20250413082501-770addad57ef h1:0ULNkD9t3RIP15BlYqlx61DPjSHTGXYObWW2mIgD9qI=
+github.com/InazumaV/Ratte-Interface v0.0.0-20250413082501-770addad57ef/go.mod h1:UxqxslbpT8Q4qMldSNI6VCX5WFXWDbvE4fXpymp73kA=
 github.com/OmarTariq612/goech v0.0.0-20240405204721-8e2e1dafd3a0 h1:Wo41lDOevRJSGpevP+8Pk5bANX7fJacO2w04aqLiC5I=
 github.com/OmarTariq612/goech v0.0.0-20240405204721-8e2e1dafd3a0/go.mod h1:FVGavL/QEBQDcBpr3fAojoK17xX5k9bicBphrOpP7uM=
 github.com/andybalholm/brotli v1.1.0 h1:eLKJA0d02Lf0mVpIDgYnqXcUn0GqVmEFny3VuID1U3M=
