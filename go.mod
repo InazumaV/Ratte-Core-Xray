@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.1
 
 require (
-	github.com/InazumaV/Ratte-Interface v0.0.0-20250413082501-770addad57ef
+	github.com/InazumaV/Ratte-Interface v0.0.0-20250420010428-f7d66abcc4f6
 	github.com/goccy/go-json v0.10.3
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/orcaman/concurrent-map/v2 v2.0.1
