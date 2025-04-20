@@ -1,4 +1,4 @@
-package main
+package xray
 
 // Copy or Modify from github.com/XTLS/Xray-Core
 

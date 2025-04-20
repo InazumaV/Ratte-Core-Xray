@@ -1,4 +1,4 @@
-package main
+package xray
 
 import (
 	"github.com/goccy/go-json"
