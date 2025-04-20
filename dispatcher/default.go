@@ -131,6 +131,7 @@ func (d *DefaultDispatcher) Init(config *Config, om outbound.Manager, router rou
 	d.policy = pm
 	d.stats = sm
 	d.dns = dns
+	d.ls = cmap.New[*limiter.Limiter]()
 	return nil
 }
 
