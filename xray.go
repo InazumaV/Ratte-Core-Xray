@@ -37,7 +37,9 @@ type Xray struct {
 }
 
 func NewXray() *Xray {
-	return &Xray{}
+	return &Xray{
+		nodes: cmap.New[*core.NodeInfo](),
+	}
 }
 
 func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {

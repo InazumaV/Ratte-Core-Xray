@@ -16,6 +16,7 @@ require (
 )
 
 require (
+	github.com/InazumaV/Ratte-Panel-V2b v0.0.0-20250420013203-72f8abe3e919 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
@@ -63,4 +64,5 @@ require (
 	google.golang.org/grpc v1.71.0 // indirect
 	gvisor.dev/gvisor v0.0.0-20240320123526-dc6abceb7ff0 // indirect
 	lukechampine.com/blake3 v1.4.0 // indirect
+	resty.dev/v3 v3.0.0-beta.2 // indirect
 )
