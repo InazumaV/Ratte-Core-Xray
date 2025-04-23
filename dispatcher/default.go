@@ -169,24 +169,10 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 		user = sessionInbound.User
 	}
 
-	// Modify -------------------------------------
 	if user != nil && len(user.Email) > 0 {
+		// Modify -------------------------------------
 		l, ok := d.ls.Get(sessionInbound.Tag)
 		if ok {
-			// Ip limit check
-			r, err := l.CheckIpLimitThenRecord(user.Email, sessionInbound.Source.String())
-			if err != nil {
-				errors.LogWarning(ctx, "Check ip limit error: ", err)
-			}
-			if r {
-				common.Close(outboundLink.Writer)
-				common.Close(inboundLink.Writer)
-				common.Interrupt(outboundLink.Reader)
-				common.Interrupt(inboundLink.Reader)
-				errors.LogWarning(ctx, "Reject user[", user.Email, "] connect by IP limit.", err)
-				return nil, nil
-			}
-
 			// speed limit check
 			b, err := l.CheckSpeedLimitTheGetRateLimiter(user.Email)
 			if err != nil {
@@ -198,6 +184,30 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 		// -------------------------------------
 
 		p := d.policy.ForLevel(user.Level)
+
+		// Modify -------------------------------------
+		if p.Stats.UserOnline {
+			name := "user>>>" + user.Email + ">>>online"
+			om, _ := stats.GetOrRegisterOnlineMap(d.stats, name)
+			if om != nil {
+				sessionInbounds := session.InboundFromContext(ctx)
+				userIP := sessionInbounds.Source.Address.String()
+				// log Online user with ips
+				// errors.LogDebug(ctx, "user>>>" + user.Email + ">>>online", om.Count(), om.List())
+				if l.CheckIpByCount(user.Email, om.Count()) {
+					if !ic.InSlice(om.List(), userIP) {
+						common.Close(outboundLink.Writer)
+						common.Close(inboundLink.Writer)
+						common.Interrupt(outboundLink.Reader)
+						common.Interrupt(inboundLink.Reader)
+						errors.LogWarning(ctx, "Reject user[", user.Email, "] connect by IP limit.")
+					}
+				}
+				om.AddIP(userIP)
+			}
+		}
+		// -------------------------------------
+
 		if p.Stats.UserUplink {
 			name := "user>>>" + user.Email + ">>>traffic>>>uplink"
 			if c, _ := stats.GetOrRegisterCounter(d.stats, name); c != nil {
@@ -214,18 +224,6 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 					Counter: c,
 					Writer:  outboundLink.Writer,
 				}
-			}
-		}
-
-		if p.Stats.UserOnline {
-			name := "user>>>" + user.Email + ">>>online"
-			if om, _ := stats.GetOrRegisterOnlineMap(d.stats, name); om != nil {
-				sessionInbounds := session.InboundFromContext(ctx)
-				userIP := sessionInbounds.Source.Address.String()
-				om.AddIP(userIP)
-				// log Online user with ips
-				// errors.LogDebug(ctx, "user>>>" + user.Email + ">>>online", om.Count(), om.List())
-
 			}
 		}
 	}

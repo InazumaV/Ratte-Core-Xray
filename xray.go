@@ -141,6 +141,9 @@ func buildCore(dataPath string, c *XrayConfig) (*xc.Instance, error) {
 			return nil, fmt.Errorf("decode policy error: %w", err)
 		}
 	}
+	policy.StatsUserDownlink = true
+	policy.StatsUserUplink = true
+	policy.StatsUserOnline = true
 	corePolicyConfig := &coreConf.PolicyConfig{}
 	corePolicyConfig.Levels = map[uint32]*coreConf.Policy{0: policy}
 	policyConfig, _ := corePolicyConfig.Build()

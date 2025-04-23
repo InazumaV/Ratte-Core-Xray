@@ -74,6 +74,17 @@ func (l *Limiter) CheckIpLimitThenRecord(email string, ip string) (reject bool, 
 	return false, nil
 }
 
+func (l *Limiter) CheckIpByCount(email string, c int) bool {
+	info, ok := l.userLimit.Get(email)
+	if !ok {
+		return false
+	}
+	if c >= info.IpLimit {
+		return true
+	}
+	return false
+}
+
 func (l *Limiter) CheckSpeedLimitTheGetRateLimiter(email string) (limiter *rate.Limiter, err error) {
 	info, ok := l.userLimit.Get(email)
 	if !ok {
