@@ -36,6 +36,10 @@ type Xray struct {
 	dispatcher *dispatcher.DefaultDispatcher
 }
 
+func (c *Xray) CustomMethod(method string, args any, reply *any) error {
+	return nil
+}
+
 func NewXray() *Xray {
 	return &Xray{
 		nodes: cmap.New[*core.NodeInfo](),
