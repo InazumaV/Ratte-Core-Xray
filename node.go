@@ -8,7 +8,6 @@ import (
 	"github.com/InazumaV/Ratte-Core-Xray/limiter"
 	e2 "github.com/InazumaV/Ratte-Interface/common/errors"
 	"github.com/InazumaV/Ratte-Interface/core"
-	"github.com/InazumaV/Ratte-Interface/params"
 	"github.com/goccy/go-json"
 	mapS "github.com/mitchellh/mapstructure"
 	"github.com/xtls/xray-core/common/net"
@@ -17,7 +16,6 @@ import (
 	"github.com/xtls/xray-core/features/inbound"
 	"github.com/xtls/xray-core/features/outbound"
 	coreConf "github.com/xtls/xray-core/infra/conf"
-	"strconv"
 	"strings"
 )
 
@@ -36,31 +34,20 @@ func (c *Xray) getInboundConfig(
 	}
 	var netProtocol string // network protocol
 	var port uint32
-	var common *params.CommonNodeParams
 	enableTls := false
 	switch n.Type {
 	case "vmess":
 		netProtocol = n.VMess.Network
-		common = &n.VMess.CommonNodeParams
-		if n.VMess.TlsType == 1 {
-			enableTls = true
-		}
 		err = parseV2rayInboundConfig(n, in)
 	case "vless":
 		netProtocol = n.VLess.Network
-		common = &n.VLess.CommonNodeParams
-		if n.VLess.TlsType == 1 {
-			enableTls = true
-		}
 		err = parseV2rayInboundConfig(n, in)
 	case "trojan":
 		netProtocol = "tcp"
-		common = (*params.CommonNodeParams)(n.Trojan)
 		enableTls = true
 		err = parseTrojanInboundConfig(in)
 	case "shadowsocks":
 		netProtocol = "tcp"
-		common = &n.Shadowsocks.CommonNodeParams
 		err = parseShadowsocksInboundConfig(n, in)
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", n.Type)
@@ -68,8 +55,7 @@ func (c *Xray) getInboundConfig(
 	if err != nil {
 		return nil, err
 	}
-	p, _ := strconv.Atoi(common.Port)
-	port = uint32(p)
+	port = uint32(n.Port)
 	if port == 0 {
 		return nil, fmt.Errorf("invalid port: %d", port)
 	}
@@ -83,7 +69,7 @@ func (c *Xray) getInboundConfig(
 			}},
 	}
 	// Set Listen IP address
-	ipAddress := net.ParseAddress(n.OtherOptions["SendIp"].(string))
+	ipAddress := net.ParseAddress(exp.SendIp)
 	in.ListenOn = &coreConf.Address{Address: ipAddress}
 	// Set SniffingConfig
 	if in.SniffingConfig == nil {
@@ -98,24 +84,24 @@ func (c *Xray) getInboundConfig(
 	case "tcp":
 		if in.StreamSetting.TCPSettings == nil {
 			tcpSetting := &coreConf.TCPConfig{
-				AcceptProxyProtocol: common.ProxyProtocol,
+				AcceptProxyProtocol: n.ProxyProtocol,
 			} //Enable proxy protocol
 			in.StreamSetting.TCPSettings = tcpSetting
 		} else {
-			in.StreamSetting.TCPSettings.AcceptProxyProtocol = common.ProxyProtocol
+			in.StreamSetting.TCPSettings.AcceptProxyProtocol = n.ProxyProtocol
 		}
 	case "ws":
 		if in.StreamSetting.WSSettings == nil {
 			in.StreamSetting.WSSettings = &coreConf.WebSocketConfig{
-				AcceptProxyProtocol: common.ProxyProtocol,
+				AcceptProxyProtocol: n.ProxyProtocol,
 			} //Enable proxy protocol
 		} else {
-			in.StreamSetting.WSSettings.AcceptProxyProtocol = common.ProxyProtocol
+			in.StreamSetting.WSSettings.AcceptProxyProtocol = n.ProxyProtocol
 		}
 	default:
 		socketConfig := &coreConf.SocketConfig{
-			AcceptProxyProtocol: common.ProxyProtocol,
-			TFO:                 common.ProxyProtocol,
+			AcceptProxyProtocol: n.ProxyProtocol,
+			TFO:                 n.ProxyProtocol,
 		} //Enable proxy protocol
 		in.StreamSetting.SocketSettings = socketConfig
 	}
@@ -252,7 +238,7 @@ func (c *Xray) AddNode(p *core.AddNodeParams) (err error) {
 		}
 	}()
 	expO := &ExpendNodeOptions{}
-	err = mapS.Decode(p.NodeInfo.ExpandParams.OtherOptions, expO)
+	err = mapS.Decode(p.NodeInfo.Options, expO)
 	if err != nil {
 		return fmt.Errorf("unmarshal expend node options failed: %s", err)
 	}
